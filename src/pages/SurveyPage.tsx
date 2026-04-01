@@ -157,6 +157,16 @@ export function SurveyPage() {
           <Plus size={16} /> Add Opening
         </button>
 
+        {/* Review estimate button */}
+        {totalIssues > 0 && (
+          <button
+            onClick={() => navigate(`/estimate?jobId=${jobId}`)}
+            className="w-full flex items-center justify-center gap-2 py-3 mt-3 bg-blue-600 rounded-xl text-sm text-white font-semibold"
+          >
+            Review Estimate ({totalIssues} issues)
+          </button>
+        )}
+
         {openings.length === 0 && (
           <div className="text-center py-8">
             <AlertTriangle size={24} className="text-gray-600 mx-auto mb-2" />
