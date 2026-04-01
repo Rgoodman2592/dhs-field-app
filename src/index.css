@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --dhs-navy: #0F2B5B;
+  --dhs-dark: #0E1117;
+  --dhs-accent: #3B82F6;
+  --dhs-red: #C8102E;
+}
+
+body {
+  margin: 0;
+  background: var(--dhs-dark);
+  color: #e5e7eb;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+input, select, textarea {
+  font-size: 16px;
+}
