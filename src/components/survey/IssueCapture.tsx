@@ -46,16 +46,17 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
     return getManufacturersForType(hardwareType);
   }, [hardwareType]);
 
-  // Auto-match replacement product
+  // Auto-match replacement product (only for replace/install_new actions)
   const category = hardwareType ? hardwareTypeToCategory(hardwareType) : null;
+  const needsMaterial = action === 'replace' || action === 'install_new';
   const matchResult = useMemo(() => {
-    if (!category) return null;
+    if (!category || !needsMaterial) return null;
     return matchIssueToProduct(category, { fireRated: false });
-  }, [category]);
+  }, [category, needsMaterial]);
 
-  const laborHrs = matchResult ? estimateLabor(matchResult.product, action) : 0;
+  const laborHrs = matchResult ? estimateLabor(matchResult.product, action) : (category ? (action === 'repair' ? 1 : 0.5) : 0);
   const laborCost = laborHrs * CREW_RATE;
-  const materialCost = matchResult?.sellPrice ?? 0;
+  const materialCost = needsMaterial ? (matchResult?.sellPrice ?? 0) : 0;
   const lineTotal = laborCost + materialCost;
 
   // Build full description from selections
@@ -250,20 +251,38 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
             </div>
           </div>
 
-          {/* ── Suggested Replacement Preview ── */}
-          {matchResult && (
+          {/* ── Estimate Preview ── */}
+          {category && (laborHrs > 0 || matchResult) && (
             <div className="bg-[#0E1117] rounded-xl border border-gray-700/30 p-3">
               <div className="flex items-center gap-1.5 mb-2">
                 <DollarSign size={12} className="text-green-400" />
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Suggested Replacement</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase">
+                  {needsMaterial ? 'Suggested Replacement' : 'Labor Estimate'}
+                </span>
               </div>
-              <div className="text-xs text-white font-medium mb-0.5">{matchResult.product.name}</div>
-              <div className="text-[10px] text-gray-500 mb-2 line-clamp-2">{matchResult.product.desc}</div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <div className="text-[9px] text-gray-500">Material</div>
-                  <div className="text-[11px] font-bold text-white">${materialCost.toFixed(2)}</div>
+
+              {/* Show product info only for replace/install_new */}
+              {matchResult && needsMaterial && (
+                <>
+                  <div className="text-xs text-white font-medium mb-0.5">{matchResult.product.name}</div>
+                  <div className="text-[10px] text-gray-500 mb-2 line-clamp-2">{matchResult.product.desc}</div>
+                </>
+              )}
+
+              {/* Labor-only message for repair/adjust */}
+              {!needsMaterial && (
+                <div className="text-[10px] text-gray-400 mb-2">
+                  {action === 'repair' ? 'Repair — labor only, no replacement parts' : 'Adjustment — labor only'}
                 </div>
+              )}
+
+              <div className={`grid ${needsMaterial ? 'grid-cols-3' : 'grid-cols-2'} gap-2 text-center`}>
+                {needsMaterial && (
+                  <div>
+                    <div className="text-[9px] text-gray-500">Material</div>
+                    <div className="text-[11px] font-bold text-white">${materialCost.toFixed(2)}</div>
+                  </div>
+                )}
                 <div>
                   <div className="text-[9px] text-gray-500">Labor ({laborHrs}h)</div>
                   <div className="text-[11px] font-bold text-white">${laborCost.toFixed(2)}</div>
@@ -273,7 +292,9 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
                   <div className="text-[11px] font-bold text-green-400">${lineTotal.toFixed(2)}</div>
                 </div>
               </div>
-              {matchResult.veAlternatives.length > 0 && (
+
+              {/* VE alternatives only for replacement */}
+              {needsMaterial && matchResult && matchResult.veAlternatives.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-gray-700/30">
                   <div className="flex items-center gap-1 mb-1">
                     <ArrowRightLeft size={9} className="text-amber-400" />
