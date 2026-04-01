@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { X, Camera, ImagePlus, Trash2, AlertCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { X, Camera, ImagePlus, Trash2, AlertCircle, DollarSign, ArrowRightLeft } from 'lucide-react';
 import type { Issue } from '../../types';
 import { useCamera } from '../../hooks/useCamera';
-import { classifyIssue } from '../../engine/issueClassifier';
+import { classifyIssue, needsAIClassification } from '../../engine/issueClassifier';
+import { matchIssueToProduct, estimateLabor } from '../../engine/partMatcher';
+import { CREW_RATE } from '../../config/laborRates';
 
 interface Props {
   jobId: string;
@@ -34,6 +36,17 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
 
   const classification = description.trim() ? classifyIssue(description) : null;
   const hasPhoto = photos.length > 0;
+
+  // Auto-match product when classification is confident enough
+  const matchResult = useMemo(() => {
+    if (!classification || classification.confidence < 0.5) return null;
+    return matchIssueToProduct(classification.category, { fireRated: false });
+  }, [classification]);
+
+  const laborHrs = matchResult ? estimateLabor(matchResult.product, action) : 0;
+  const laborCost = laborHrs * CREW_RATE;
+  const materialCost = matchResult?.sellPrice ?? 0;
+  const lineTotal = laborCost + materialCost;
 
   const handleSave = () => {
     if (!description.trim() || !hasPhoto) return;
@@ -170,6 +183,57 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
               ))}
             </div>
           </div>
+
+          {/* Estimate Preview */}
+          {matchResult && (
+            <div className="bg-[#0E1117] rounded-xl border border-gray-700/30 p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <DollarSign size={14} className="text-green-400" />
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Estimate Preview</span>
+              </div>
+              <div className="text-xs text-white font-medium mb-1">{matchResult.product.name}</div>
+              <div className="text-[10px] text-gray-500 mb-2 line-clamp-2">{matchResult.product.desc}</div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="text-[10px] text-gray-500">Material</div>
+                  <div className="text-xs font-bold text-white">${materialCost.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500">Labor ({laborHrs}h)</div>
+                  <div className="text-xs font-bold text-white">${laborCost.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500">Total</div>
+                  <div className="text-xs font-bold text-green-400">${lineTotal.toFixed(2)}</div>
+                </div>
+              </div>
+
+              {/* VE Alternatives */}
+              {matchResult.veAlternatives.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-700/30">
+                  <div className="flex items-center gap-1 mb-1">
+                    <ArrowRightLeft size={10} className="text-amber-400" />
+                    <span className="text-[9px] text-amber-400 font-medium">Value Engineering Options</span>
+                  </div>
+                  {matchResult.veAlternatives.slice(0, 2).map(ve => (
+                    <div key={ve.partNumber} className="flex items-center justify-between text-[10px] py-0.5">
+                      <span className="text-gray-400">{ve.brand}</span>
+                      <span className="text-gray-300">${ve.sellPrice.toFixed(2)}
+                        {ve.savingsPct > 0 && <span className="text-green-400 ml-1">(-{ve.savingsPct}%)</span>}
+                        {ve.savingsPct < 0 && <span className="text-red-400 ml-1">(+{Math.abs(ve.savingsPct)}%)</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {needsAIClassification(classification!) && (
+                <div className="mt-2 text-[9px] text-amber-400/60 italic">
+                  Low confidence match — estimator should verify
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Save */}
           <button onClick={handleSave} disabled={!description.trim() || !hasPhoto}
