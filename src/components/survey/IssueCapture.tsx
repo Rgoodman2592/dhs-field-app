@@ -50,23 +50,15 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
     return getManufacturersForType(hardwareType);
   }, [hardwareType]);
 
-  // Build search query from manufacturer + part number + hardware type
-  const vendorQuery = useMemo(() => {
-    const parts: string[] = [];
-    if (manufacturer) {
-      const mfr = manufacturers.find(m => m.id === manufacturer);
-      if (mfr) parts.push(mfr.name);
-    }
-    if (partNumber) parts.push(partNumber);
-    if (!partNumber && hardwareType) {
-      const hwLabel = HARDWARE_TYPES.find(t => t.id === hardwareType)?.label;
-      if (hwLabel && manufacturer) parts.push(hwLabel);
-    }
-    return parts.join(' ');
-  }, [manufacturer, partNumber, hardwareType, manufacturers]);
+  // Live vendor search — uses IMLSS prefix conventions and hardware type filtering
+  const vendorSearchInput = useMemo(() => ({
+    manufacturer: manufacturer || undefined,
+    partNumber: partNumber || undefined,
+    hardwareType: hardwareType || undefined,
+  }), [manufacturer, partNumber, hardwareType]);
 
-  // Live vendor search
-  const { results: vendorResults, loading: vendorLoading, error: vendorError } = useVendorSearch(vendorQuery);
+  const { results: vendorResults, loading: vendorLoading, error: vendorError } = useVendorSearch(vendorSearchInput);
+  const hasVendorSearch = !!(manufacturer || partNumber);
 
   // Auto-match replacement product (only for replace/install_new actions)
   const category = hardwareType ? hardwareTypeToCategory(hardwareType) : null;
@@ -236,7 +228,7 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
           )}
 
           {/* ── Vendor Search Results (IMLSS + SecLock) ── */}
-          {hardwareType && needsMaterial && (vendorQuery.length >= 3) && (
+          {hardwareType && needsMaterial && hasVendorSearch && (
             <div>
               <label className="flex items-center gap-1.5 text-[10px] text-gray-400 mb-1.5 font-medium uppercase">
                 <ShoppingCart size={10} />
@@ -290,7 +282,7 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
                   })}
                 </div>
               ) : (
-                !vendorLoading && vendorQuery.length >= 3 && (
+                !vendorLoading && hasVendorSearch && (
                   <div className="text-[10px] text-gray-500 py-2">No matches found — using estimated pricing</div>
                 )
               )}
