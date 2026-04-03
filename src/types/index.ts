@@ -61,6 +61,8 @@ export interface Issue {
   partNumber?: string;
   unitCost?: number;
   veSelectedBrand?: string;
+  vendorSource?: string;     // 'IML' | 'SecLock'
+  vendorName?: string;       // Full product name from vendor
   // Access control specific
   acFields?: {
     credentialType?: string;

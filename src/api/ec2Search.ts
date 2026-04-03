@@ -1,6 +1,6 @@
 /** Proxy calls to the existing EC2 search server at 3.147.205.68 */
 
-const EC2_BASE = import.meta.env.VITE_EC2_BASE || '/api/ec2';
+const EC2_BASE = import.meta.env.VITE_EC2_BASE || 'http://3.147.205.68/api';
 
 export interface SearchResult {
   name: string;

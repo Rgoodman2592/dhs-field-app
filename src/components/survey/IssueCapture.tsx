@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { X, Camera, ImagePlus, Trash2, AlertCircle, DollarSign, ArrowRightLeft, ChevronDown } from 'lucide-react';
+import { X, Camera, ImagePlus, Trash2, AlertCircle, DollarSign, ArrowRightLeft, ChevronDown, Loader2, ShoppingCart, ExternalLink } from 'lucide-react';
 import type { Issue } from '../../types';
 import { useCamera } from '../../hooks/useCamera';
 import { matchIssueToProduct, estimateLabor } from '../../engine/partMatcher';
 import { CREW_RATE } from '../../config/laborRates';
 import { HARDWARE_TYPES, getManufacturersForType, hardwareTypeToCategory } from '../../hooks/useBrandCatalog';
+import { useVendorSearch, type VendorMatch } from '../../hooks/useVendorSearch';
 
 interface Props {
   jobId: string;
@@ -40,11 +41,32 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
   const { photos, capturePhoto, selectFromGallery, removePhoto, capturing } = useCamera();
   const hasPhoto = photos.length > 0;
 
+  // Selected vendor match
+  const [selectedVendorMatch, setSelectedVendorMatch] = useState<VendorMatch | null>(null);
+
   // Get manufacturers for selected hardware type
   const manufacturers = useMemo(() => {
     if (!hardwareType) return [];
     return getManufacturersForType(hardwareType);
   }, [hardwareType]);
+
+  // Build search query from manufacturer + part number + hardware type
+  const vendorQuery = useMemo(() => {
+    const parts: string[] = [];
+    if (manufacturer) {
+      const mfr = manufacturers.find(m => m.id === manufacturer);
+      if (mfr) parts.push(mfr.name);
+    }
+    if (partNumber) parts.push(partNumber);
+    if (!partNumber && hardwareType) {
+      const hwLabel = HARDWARE_TYPES.find(t => t.id === hardwareType)?.label;
+      if (hwLabel && manufacturer) parts.push(hwLabel);
+    }
+    return parts.join(' ');
+  }, [manufacturer, partNumber, hardwareType, manufacturers]);
+
+  // Live vendor search
+  const { results: vendorResults, loading: vendorLoading, error: vendorError } = useVendorSearch(vendorQuery);
 
   // Auto-match replacement product (only for replace/install_new actions)
   const category = hardwareType ? hardwareTypeToCategory(hardwareType) : null;
@@ -56,7 +78,8 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
 
   const laborHrs = matchResult ? estimateLabor(matchResult.product, action) : (category ? (action === 'repair' ? 1 : 0.5) : 0);
   const laborCost = laborHrs * CREW_RATE;
-  const materialCost = needsMaterial ? (matchResult?.sellPrice ?? 0) : 0;
+  const vendorCost = selectedVendorMatch?.cost ?? selectedVendorMatch?.listPrice ?? null;
+  const materialCost = needsMaterial ? (vendorCost ?? matchResult?.sellPrice ?? 0) : 0;
   const lineTotal = laborCost + materialCost;
 
   // Build full description from selections
@@ -92,7 +115,11 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
       photos: photos.map(p => p.url),
       barcodeScan: partNumber || undefined,
       classifiedProductId: matchResult?.product.id,
-      classificationConfidence: 1.0, // user-selected, not auto-classified
+      classificationConfidence: 1.0,
+      partNumber: selectedVendorMatch?.sku || partNumber || undefined,
+      unitCost: vendorCost ?? matchResult?.sellPrice ?? undefined,
+      vendorSource: selectedVendorMatch?.source,
+      vendorName: selectedVendorMatch?.name,
       createdBy: 'current_user',
       createdAt: new Date().toISOString(),
       syncStatus: 'local',
@@ -205,6 +232,80 @@ export function IssueCapture({ jobId, openingId, onClose, onSave }: Props) {
               <input value={partNumber} onChange={e => setPartNumber(e.target.value)}
                 placeholder="e.g. LCN 4041, 99EO-3-26D, ND80PD"
                 className="w-full bg-[#0E1117] border border-gray-600 rounded-lg px-3 py-2.5 text-white text-sm focus:border-blue-500 focus:outline-none" />
+            </div>
+          )}
+
+          {/* ── Vendor Search Results (IMLSS + SecLock) ── */}
+          {hardwareType && needsMaterial && (vendorQuery.length >= 3) && (
+            <div>
+              <label className="flex items-center gap-1.5 text-[10px] text-gray-400 mb-1.5 font-medium uppercase">
+                <ShoppingCart size={10} />
+                Available Parts — IMLSS & SecLock
+                {vendorLoading && <Loader2 size={10} className="animate-spin text-blue-400" />}
+              </label>
+
+              {vendorError && (
+                <div className="text-[10px] text-amber-400 mb-1">{vendorError} — using estimated pricing</div>
+              )}
+
+              {vendorResults.length > 0 ? (
+                <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                  {vendorResults.map((v, i) => {
+                    const isSelected = selectedVendorMatch?.sku === v.sku && selectedVendorMatch?.source === v.source;
+                    const price = v.cost ?? v.listPrice;
+                    return (
+                      <button
+                        key={`${v.source}-${v.sku}-${i}`}
+                        onClick={() => setSelectedVendorMatch(isSelected ? null : v)}
+                        className={`w-full text-left p-2.5 rounded-lg border transition-colors ${
+                          isSelected
+                            ? 'bg-blue-600/15 border-blue-500/50'
+                            : 'bg-[#0E1117] border-gray-700/30 active:bg-[#1a1d24]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[11px] text-white font-medium truncate">{v.name}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {v.sku && <span className="text-[9px] text-gray-500 font-mono">{v.sku}</span>}
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                                v.source === 'IML' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-purple-500/15 text-purple-400'
+                              }`}>{v.source === 'IML' ? 'IMLSS' : 'SecLock'}</span>
+                              {v.qtyAvail != null && v.qtyAvail > 0 && (
+                                <span className="text-[9px] text-green-400">{v.qtyAvail} in stock</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {price != null ? (
+                              <div className="text-[11px] font-bold text-green-400">${price.toFixed(2)}</div>
+                            ) : (
+                              <div className="text-[10px] text-gray-500">Call</div>
+                            )}
+                            {isSelected && <div className="text-[9px] text-blue-400 mt-0.5">Selected</div>}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                !vendorLoading && vendorQuery.length >= 3 && (
+                  <div className="text-[10px] text-gray-500 py-2">No matches found — using estimated pricing</div>
+                )
+              )}
+
+              {selectedVendorMatch && (
+                <div className="flex items-center gap-1.5 mt-1.5 p-2 bg-blue-600/10 rounded-lg border border-blue-500/20">
+                  <ExternalLink size={10} className="text-blue-400 flex-shrink-0" />
+                  <span className="text-[10px] text-blue-300">
+                    Using <strong>{selectedVendorMatch.name}</strong> from {selectedVendorMatch.source === 'IML' ? 'IMLSS' : 'SecLock'}
+                    {(selectedVendorMatch.cost ?? selectedVendorMatch.listPrice) != null && (
+                      <> — ${(selectedVendorMatch.cost ?? selectedVendorMatch.listPrice)!.toFixed(2)}</>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
