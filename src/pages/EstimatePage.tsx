@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calculator, Flame, Shield, ShieldAlert, ChevronDown, ChevronRight, DollarSign, ArrowRightLeft, Send, FileText } from 'lucide-react';
+import { ArrowLeft, Calculator, Flame, Shield, ShieldAlert, ChevronDown, ChevronRight, ArrowRightLeft, Send, FileText } from 'lucide-react';
 import * as store from '../store/offlineStore';
 import type { Job, Opening, Issue, EstimateLineItem } from '../types';
 import { classifyIssue } from '../engine/issueClassifier';
 import { matchIssueToProduct, estimateLabor } from '../engine/partMatcher';
 import { validateFireCode, type FireCodeConfig } from '../engine/fireCodeRules';
 import { formatSalesDesc } from '../engine/salesDescGen';
-import { applyMarkup, getMarkup } from '../config/markups';
+import { getMarkup } from '../config/markups';
 import { CREW_RATE, TRIP_CHARGE } from '../config/laborRates';
 import { useAuth } from '../hooks/useAuth';
 

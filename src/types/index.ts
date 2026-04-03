@@ -10,6 +10,7 @@ export interface User {
 
 // ─── Survey Hierarchy: Job > Opening > Issue ──────────────────────────────────
 export interface Job {
+  [key: string]: unknown;
   id: string;
   sfJobId?: string;
   customerId?: string;
@@ -23,6 +24,7 @@ export interface Job {
 }
 
 export interface Opening {
+  [key: string]: unknown;
   id: string;
   jobId: string;
   label: string;           // e.g. "Main Entry #1", "Stairwell B 3rd Floor"
@@ -38,6 +40,7 @@ export interface Opening {
 }
 
 export interface Issue {
+  [key: string]: unknown;
   id: string;
   openingId: string;
   jobId: string;

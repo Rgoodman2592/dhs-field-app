@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Loader2, DollarSign, Plus, ShoppingCart } from 'lucide-react';
+import { Search, Loader2, DollarSign, Plus } from 'lucide-react';
 import { searchParts, getSecLockNetPrice, type SearchResult } from '../api/ec2Search';
 
 const SOURCE_COLORS: Record<string, string> = {

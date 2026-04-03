@@ -3,7 +3,7 @@
  * Uses browser print for PDF generation (lighter than @react-pdf for survey reports).
  */
 import type { Job, Opening, Issue, EstimateLineItem } from '../../types';
-import { CREW_RATE, TRIP_CHARGE } from '../../config/laborRates';
+import { TRIP_CHARGE } from '../../config/laborRates';
 
 export function generateSurveyHTML(
   job: Job,
