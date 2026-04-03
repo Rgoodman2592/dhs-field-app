@@ -13,7 +13,7 @@ export function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1d24] border-t border-gray-700/50 flex z-50 safe-area-bottom">
+    <nav className="flex-shrink-0 bg-[#1a1d24] border-t border-gray-700/50 flex" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       {tabs.map(({ path, label, icon: Icon }) => {
         const active = location.pathname.startsWith(path);
         return (
