@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pricing-apis": {
+      "command": "node",
+      "args": ["/Users/ryan/.claude/mcp-servers/pricing-apis.mjs"],
+      "description": "Mesker, Kawneer, USA Wood Door, IMLSS, and SecLock pricing lookup tools"
+    }
+  }
+}
